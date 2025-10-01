@@ -568,7 +568,7 @@ func (a *App) Draw(s tcell.Screen) {
 
     // If help popup requested, draw it on top
     if a.HelpVisible {
-        help := "q - quit | i - edit | Enter - edit | Ctrl+Enter - save&stay | Shift/Alt+Enter - newline | : - command | Ctrl←/Ctrl→ - col width | Ctrl↑/Ctrl↓ - row height | F2/F3 add row/col | F4 delete row | F5 delete col | PgUp/PgDn/Home/End scroll | :w file | :o file"
+        help := "\n i / Enter - edit \n Ctrl+Enter - save&stay \n Shift/Alt+Enter - newline \n : - command \n = - formula \n Ctrl←/Ctrl→ - col width \n Ctrl↑/Ctrl↓ - row height \n F2/F3 - add row/col \n F4 - delete row \n F5 - delete col \n PgUp/PgDn/Home/End - scroll \n :w file | :o file \n "
         a.drawHelpPopup(s, help)
     }
 
@@ -705,7 +705,7 @@ func (a *App) drawHelpPopup(s tcell.Screen, help string) {
     maxPW := w - 6
     maxPH := h - 6
 
-    innerW := minInt(maxPW, 80)
+    innerW := minInt(maxPW, 50)
     if innerW < 30 {
         innerW = maxInt(30, maxPW)
     }
@@ -717,11 +717,11 @@ func (a *App) drawHelpPopup(s tcell.Screen, help string) {
         lines = lines[:maxPH]
     }
     innerH := len(lines)
-    if innerH < 3 {
-        innerH = 3
+    if innerH < 20 {
+        innerH = 20
     }
-    pw := innerW + 2
-    ph := innerH + 2
+    pw := innerW + 6
+    ph := innerH + 6
 
     left := (w - pw) / 2
     top := (h - ph) / 2
@@ -774,51 +774,63 @@ func (a *App) drawHelpPopup(s tcell.Screen, help string) {
 }
 
 func wrapText(s string, max int) []string {
-    if max <= 1 {
+    if max <= 2 {
         return []string{s}
     }
-    words := strings.Fields(s)
-    if len(words) == 0 {
-        return []string{""}
-    }
-    var lines []string
-    cur := ""
-    for _, w := range words {
-        if cur == "" {
-            if runeLen(w) > max {
-                chunks := chunkString(w, max)
-                for i, c := range chunks {
-                    if i == 0 {
-                        cur = c
-                    } else {
-                        lines = append(lines, cur)
-                        cur = c
-                    }
-                }
-            } else {
-                cur = w
-            }
+
+    var result []string
+    paragraphs := strings.Split(s, "\n") // разбиваем по \n
+
+    for pi, para := range paragraphs {
+        words := strings.Fields(para)
+        if len(words) == 0 {
+            result = append(result, "") // пустая строка для переноса
             continue
         }
-        if runeLen(cur)+1+runeLen(w) <= max {
-            cur = cur + " " + w
-        } else {
-            lines = append(lines, cur)
-            if runeLen(w) > max {
-                chunks := chunkString(w, max)
-                cur = chunks[len(chunks)-1]
-                for i := 0; i < len(chunks)-1; i++ {
-                    lines = append(lines, chunks[i])
+
+        cur := " " // левый отступ
+
+        for _, w := range words {
+            if runeLen(w) > max-1 {
+                chunks := chunkString(w, max-1)
+                for i, c := range chunks {
+                    if i == 0 {
+                        if runeLen(cur)+1+runeLen(c) <= max {
+                            cur += " " + c
+                        } else {
+                            result = append(result, cur)
+                            cur = " " + c
+                        }
+                    } else {
+                        result = append(result, " "+c)
+                        cur = " "
+                    }
+                }
+                continue
+            }
+
+            if runeLen(cur)+1+runeLen(w) <= max {
+                if runeLen(cur) > 1 {
+                    cur += " " + w
+                } else {
+                    cur += w
                 }
             } else {
-                cur = w
+                result = append(result, cur)
+                cur = " " + w
             }
         }
+
+        if cur != "" {
+            result = append(result, cur)
+        }
+
+        if pi < len(paragraphs)-1 {
+            result = append(result, "") // сохраняем пустую строку между абзацами
+        }
     }
-    if cur != "" {
-        lines = append(lines, cur)
-    }
-    return lines
+
+    return result
 }
 
 func runeLen(s string) int {
