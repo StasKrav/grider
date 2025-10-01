@@ -10,10 +10,8 @@ import (
 )
 
 func main() {
-	// initialize app state
 	a := app.NewApp()
 
-	// start tcell
 	s, err := tcell.NewScreen()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cannot create screen: %v\n", err)
@@ -25,11 +23,12 @@ func main() {
 	}
 	defer s.Fini()
 
-	// enable mouse (optional)
 	s.EnableMouse()
 	s.Clear()
 
-	// main loop
+	// Запускаем экран входа
+	app.LoginScreen(s)
+
 	for !a.Quit {
 		a.EnsureCursorVisible(s)
 		a.Draw(s)
