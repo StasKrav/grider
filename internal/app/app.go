@@ -698,79 +698,68 @@ func (a *App) splitLines(text string, maxLines int) []string {
 }
 
 func (a *App) drawHelpPopup(s tcell.Screen, help string) {
-    w, h := s.Size()
-    if w < 10 || h < 5 {
-        return
-    }
-    maxPW := w - 6
-    maxPH := h - 6
+	w, h := s.Size()
+	if w < 10 || h < 5 {
+		return
+	}
 
-    innerW := minInt(maxPW, 50)
-    if innerW < 30 {
-        innerW = maxInt(30, maxPW)
-    }
-    innerW = maxInt(20, innerW)
-    innerW = minInt(innerW, maxPW)
+	padding := 4 // отступ внутри рамки
+	maxPW := w - 6
+	maxPH := h - 6
 
-    lines := wrapText(help, innerW)
-    if len(lines) > maxPH {
-        lines = lines[:maxPH]
-    }
-    innerH := len(lines)
-    if innerH < 20 {
-        innerH = 20
-    }
-    pw := innerW + 6
-    ph := innerH + 6
+	innerW := minInt(maxPW-padding*2, 50)
+	if innerW < 30 {
+		innerW = maxInt(30, maxPW-padding*2)
+	}
+	innerW = minInt(innerW, maxPW-padding*2)
 
-    left := (w - pw) / 2
-    top := (h - ph) / 2
+	lines := wrapText(help, innerW)
+	if len(lines) > maxPH-padding*2 {
+		lines = lines[:maxPH-padding*2]
+	}
 
-    borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDefault)
-    bgStyle := tcell.StyleDefault.Background(tcell.ColorDefault).Foreground(tcell.ColorWhite)
+	innerH := len(lines)
+	if innerH < 3 {
+		innerH = 3
+	}
 
-    for yy := 0; yy < ph; yy++ {
-        for xx := 0; xx < pw; xx++ {
-            sx := left + xx
-            sy := top + yy
-            if sx >= 0 && sy >= 0 && sx < w && sy < h {
-                s.SetContent(sx, sy, ' ', nil, bgStyle)
-            }
-        }
-    }
+	pw := innerW + padding*2
+	ph := innerH + padding*2
 
-    if left >= 0 && top >= 0 && left < w && top < h {
-        s.SetContent(left, top, '┌', nil, borderStyle)
-    }
-    if left+pw-1 >= 0 && top >= 0 && left+pw-1 < w && top < h {
-        s.SetContent(left+pw-1, top, '┐', nil, borderStyle)
-    }
-    if left >= 0 && top+ph-1 >= 0 && left < w && top+ph-1 < h {
-        s.SetContent(left, top+ph-1, '└', nil, borderStyle)
-    }
-    if left+pw-1 >= 0 && top+ph-1 >= 0 && left+pw-1 < w && top+ph-1 < h {
-        s.SetContent(left+pw-1, top+ph-1, '┘', nil, borderStyle)
-    }
-    for xx := 1; xx < pw-1; xx++ {
-        if left+xx >= 0 && top >= 0 && left+xx < w && top < h {
-            s.SetContent(left+xx, top, '─', nil, borderStyle)
-        }
-        if left+xx >= 0 && top+ph-1 >= 0 && left+xx < w && top+ph-1 < h {
-            s.SetContent(left+xx, top+ph-1, '─', nil, borderStyle)
-        }
-    }
-    for yy := 1; yy < ph-1; yy++ {
-        if left >= 0 && top+yy >= 0 && left < w && top+yy < h {
-            s.SetContent(left, top+yy, '│', nil, borderStyle)
-        }
-        if left+pw-1 >= 0 && top+yy >= 0 && left+pw-1 < w && top+yy < h {
-            s.SetContent(left+pw-1, top+yy, '│', nil, borderStyle)
-        }
-    }
+	left := (w - pw) / 2
+	top := (h - ph) / 2
 
-    for i, ln := range lines {
-        a.printTextFixedWidth(s, left+1, top+1+i, ln, bgStyle, innerW)
-    }
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDefault)
+	bgStyle := tcell.StyleDefault.Background(tcell.ColorDefault).Foreground(tcell.ColorWhite)
+
+	// рисуем фон
+	for yy := 0; yy < ph; yy++ {
+		for xx := 0; xx < pw; xx++ {
+			s.SetContent(left+xx, top+yy, ' ', nil, bgStyle)
+		}
+	}
+
+	// рисуем рамку
+	s.SetContent(left, top, '┌', nil, borderStyle)
+	s.SetContent(left+pw-1, top, '┐', nil, borderStyle)
+	s.SetContent(left, top+ph-1, '└', nil, borderStyle)
+	s.SetContent(left+pw-1, top+ph-1, '┘', nil, borderStyle)
+	for xx := 1; xx < pw-1; xx++ {
+		s.SetContent(left+xx, top, '─', nil, borderStyle)
+		s.SetContent(left+xx, top+ph-1, '─', nil, borderStyle)
+	}
+	for yy := 1; yy < ph-1; yy++ {
+		s.SetContent(left, top+yy, '│', nil, borderStyle)
+		s.SetContent(left+pw-1, top+yy, '│', nil, borderStyle)
+	}
+
+	// вертикальное центрирование блока текста
+	vOffset := (ph - padding*2 - innerH) / 2
+
+	// печатаем строки, выравненные по левому краю
+	for i, ln := range lines {
+		a.printTextFixedWidth(s, left+padding, top+padding+vOffset+i, ln, bgStyle, innerW)
+	}
 }
 
 func wrapText(s string, max int) []string {
