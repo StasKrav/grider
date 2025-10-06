@@ -568,7 +568,40 @@ func (a *App) Draw(s tcell.Screen) {
 
 	// If help popup requested, draw it on top
 	if a.HelpVisible {
-		help := "\n i / Enter - edit \n Ctrl+Enter - save&stay \n Shift/Alt+Enter - newline \n : - command \n = - formula \n Ctrl←/Ctrl→ - col width \n Ctrl↑/Ctrl↓ - row height \n F2/F3 - add row/col \n F4 - delete row \n F5 - delete col \n PgUp/PgDn/Home/End - scroll \n :w file [csv] | :o file [csv] \n "
+		help := "\n" +
+			"┌─ Основные команды ─────────────────────────────────────────────┐\n" +
+			"│ i / Enter        - Редактировать текущую ячейку               │\n" +
+			"│ Esc              - Выйти из режима редактирования             │\n" +
+			"│ :                - Открыть командную строку                   │\n" +
+			"│ =                - Ввести формулу в текущую ячейку            │\n" +
+			"│ ?                - Показать/скрыть эту справку                │\n" +
+			"└───────────────────────────────────────────────────────────────┘\n" +
+			"┌─ Навигация ───────────────────────────────────────────────────┐\n" +
+			"│ Стрелки          - Перемещение по ячейкам                     │\n" +
+			"│ Ctrl+↑/↓         - Изменить высоту строки                     │\n" +
+			"│ Ctrl+←/→         - Изменить ширину столбца                    │\n" +
+			"│ PgUp / PgDn      - Прокрутка страниц                          │\n" +
+			"│ Home / End       - Переход в начало/конец таблицы             │\n" +
+			"└───────────────────────────────────────────────────────────────┘\n" +
+			"┌─ Работа с файлами (в командной строке) ───────────────────────┐\n" +
+			"│ :w filename      - Сохранить в формате gri:der                │\n" +
+			"│ :w filename csv  - Сохранить в формате CSV                    │\n" +
+			"│ :o filename      - Открыть файл в формате gri:der             │\n" +
+			"│ :o filename csv  - Открыть файл в формате CSV                 │\n" +
+			"│ :q / :quit       - Выйти из приложения                        │\n" +
+			"└───────────────────────────────────────────────────────────────┘\n" +
+			"┌─ Работа со строками и столбцами ──────────────────────────────┐\n" +
+			"│ F2               - Добавить строку после текущей              │\n" +
+			"│ F3               - Добавить столбец после текущего            │\n" +
+			"│ F4               - Удалить текущую строку                     │\n" +
+			"│ F5               - Удалить текущий столбец                    │\n" +
+			"└───────────────────────────────────────────────────────────────┘\n" +
+			"┌─ Формулы ─────────────────────────────────────────────────────┐\n" +
+			"│ Начинаются со знака =                                         │\n" +
+			"│ Примеры: =A1+B1, =SUM(A1:A5), =AVERAGE(A1:A5)                 │\n" +
+			"│ Поддерживаемые функции:                                       │\n" +
+			"│ SUM, AVERAGE, MIN, MAX, COUNT, ROUND, IF, AND, OR, NOT, LEN   │\n" +
+			"└───────────────────────────────────────────────────────────────┘\n"
 		a.drawHelpPopup(s, help)
 	}
 
@@ -703,28 +736,31 @@ func (a *App) drawHelpPopup(s tcell.Screen, help string) {
 		return
 	}
 
-	padding := 4 // отступ внутри рамки
-	maxPW := w - 6
-	maxPH := h - 6
+	// Разбиваем текст на строки
+	lines := strings.Split(help, "\n")
 
-	innerW := minInt(maxPW-padding*2, 50)
-	if innerW < 30 {
-		innerW = maxInt(30, maxPW-padding*2)
-	}
-	innerW = minInt(innerW, maxPW-padding*2)
-
-	lines := wrapText(help, innerW)
-	if len(lines) > maxPH-padding*2 {
-		lines = lines[:maxPH-padding*2]
+	// Определяем максимальную ширину строки
+	maxWidth := 0
+	for _, line := range lines {
+		if len([]rune(line)) > maxWidth {
+			maxWidth = len([]rune(line))
+		}
 	}
 
-	innerH := len(lines)
-	if innerH < 3 {
-		innerH = 3
-	}
-
+	// Добавляем отступы
+	padding := 2
+	innerW := maxWidth
 	pw := innerW + padding*2
-	ph := innerH + padding*2
+	ph := len(lines) + padding*2
+
+	// Проверяем, помещается ли окно на экран
+	if pw > w-4 {
+		pw = w - 4
+		innerW = pw - padding*2
+	}
+	if ph > h-4 {
+		ph = h - 4
+	}
 
 	left := (w - pw) / 2
 	top := (h - ph) / 2
@@ -753,12 +789,31 @@ func (a *App) drawHelpPopup(s tcell.Screen, help string) {
 		s.SetContent(left+pw-1, top+yy, '│', nil, borderStyle)
 	}
 
-	// вертикальное центрирование блока текста
-	vOffset := (ph - padding*2 - innerH) / 2
+	// печатаем строки
+	startLine := 0
+	// Если текст не помещается, показываем последние строки
+	if len(lines) > ph-padding*2 {
+		startLine = len(lines) - (ph - padding*2)
+	}
 
-	// печатаем строки, выравненные по левому краю
-	for i, ln := range lines {
-		a.printTextFixedWidth(s, left+padding, top+padding+vOffset+i, ln, bgStyle, innerW)
+	for i := startLine; i < len(lines); i++ {
+		line := lines[i]
+		// Если строка длиннее доступного пространства, обрезаем её
+		runes := []rune(line)
+		if len(runes) > innerW {
+			runes = runes[:innerW]
+		}
+
+		// Печатаем каждый рун (символ) по отдельности, чтобы избежать проблем с кириллицей
+		for j, r := range runes {
+			xPos := left + padding + j
+			yPos := top + padding + (i - startLine)
+
+			// Проверяем границы экрана
+			if xPos >= left && xPos < left+pw-1 && yPos >= top && yPos < top+ph-1 {
+				s.SetContent(xPos, yPos, r, nil, bgStyle)
+			}
+		}
 	}
 }
 
@@ -934,6 +989,10 @@ func (a *App) ExecuteCommand(cmd string) {
 		}
 	default:
 		// unknown command
+		if parts[0] == "help" {
+			// Показываем справку
+			a.HelpVisible = true
+		}
 	}
 }
 
