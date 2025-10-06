@@ -30,10 +30,30 @@ func stringToKey(s string) ([2]int, error) {
 	return key, err
 }
 
+// ensureDocumentsDir проверяет существование директории "documents" и создает её при необходимости
+func ensureDocumentsDir() error {
+	dir := "documents"
+	// Проверяем, существует ли директория
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		// Создаем директорию, если она не существует
+		return os.MkdirAll(dir, 0755)
+	} else if err != nil {
+		// Возвращаем ошибку, если произошла другая ошибка при проверке
+		return err
+	}
+	// Директория существует
+	return nil
+}
+
 // SaveCSV writes grid to CSV file
 func SaveCSV(g map[[2]int]grid.Cell, filename string) error {
 	// Создаем путь к файлу в директории documents
 	docPath := filepath.Join("documents", filename)
+
+	// Проверяем и создаем директорию documents при необходимости
+	if err := ensureDocumentsDir(); err != nil {
+		return fmt.Errorf("error ensuring documents directory exists: %w", err)
+	}
 
 	maxR, maxC := -1, -1
 	for k := range g {
@@ -143,6 +163,11 @@ func SaveDocument(grid map[[2]int]grid.Cell, colWidths []int, rowHeights []int, 
 
 	// Создаем путь к файлу в директории documents
 	docPath := filepath.Join("documents", filename)
+
+	// Проверяем и создаем директорию documents при необходимости
+	if err := ensureDocumentsDir(); err != nil {
+		return fmt.Errorf("error ensuring documents directory exists: %w", err)
+	}
 
 	// Преобразуем grid в формат, поддерживаемый JSON
 	docGrid := ConvertGridToDocumentGrid(grid)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -870,13 +871,22 @@ func (a *App) ExecuteCommand(cmd string) {
 	case "w":
 		if len(parts) >= 2 {
 			// Проверяем, хотим ли сохранить в формате CSV или grider
-			if len(parts) >= 3 && parts[2] == "csv" {
-				if err := storage.SaveCSV(a.Grid, parts[1]); err != nil {
+			// Файл сохраняется как CSV, если:
+			// 1. Указан третий аргумент "csv", или
+			// 2. Имя файла заканчивается на ".csv"
+			filename := parts[1]
+			if (len(parts) >= 3 && parts[2] == "csv") || filepath.Ext(filename) == ".csv" {
+				// Для CSV не добавляем расширение .grider
+				// Если имя файла не заканчивается на .csv, добавляем это расширение
+				if filepath.Ext(filename) != ".csv" {
+					filename += ".csv"
+				}
+				if err := storage.SaveCSV(a.Grid, filename); err != nil {
 					fmt.Fprintf(os.Stderr, "error saving CSV: %v\n", err)
 				}
 			} else {
 				// Сохраняем в формате grider
-				if err := storage.SaveDocument(a.Grid, a.ColWidths, a.RowHeights, parts[1]); err != nil {
+				if err := storage.SaveDocument(a.Grid, a.ColWidths, a.RowHeights, filename); err != nil {
 					fmt.Fprintf(os.Stderr, "error saving document: %v\n", err)
 				}
 			}
@@ -884,8 +894,17 @@ func (a *App) ExecuteCommand(cmd string) {
 	case "o":
 		if len(parts) >= 2 {
 			// Проверяем, хотим ли загрузить из формата CSV или grider
-			if len(parts) >= 3 && parts[2] == "csv" {
-				gridMap, maxR, maxC, err := storage.LoadCSV(parts[1])
+			// Файл загружается как CSV, если:
+			// 1. Указан третий аргумент "csv", или
+			// 2. Имя файла заканчивается на ".csv"
+			filename := parts[1]
+			if (len(parts) >= 3 && parts[2] == "csv") || filepath.Ext(filename) == ".csv" {
+				// Для CSV не добавляем расширение .grider
+				// Если имя файла не заканчивается на .csv, добавляем это расширение
+				if filepath.Ext(filename) != ".csv" {
+					filename += ".csv"
+				}
+				gridMap, maxR, maxC, err := storage.LoadCSV(filename)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "error loading CSV: %v\n", err)
 					return
@@ -899,7 +918,7 @@ func (a *App) ExecuteCommand(cmd string) {
 				}
 			} else {
 				// Загружаем из формата grider
-				grid, colWidths, rowHeights, err := storage.LoadDocument(parts[1])
+				grid, colWidths, rowHeights, err := storage.LoadDocument(filename)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "error loading document: %v\n", err)
 					return
